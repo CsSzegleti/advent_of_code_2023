@@ -4,6 +4,18 @@ pub struct Engine {
     schematic: Vec<String>
 }
 
+fn is_special_character(character: char) -> bool {
+    !character.is_numeric() && !character.eq_ignore_ascii_case(&'.')
+}
+
+fn is_asterisk(character: char) -> bool {
+    character.eq_ignore_ascii_case(&'*')
+}
+
+fn is_number(character: char) -> bool {
+    character.is_numeric()
+}
+
 impl Engine {
     pub fn from(raw_schematic: &str) -> Engine {
         let mut schematic: Vec<String> = vec![];
@@ -18,17 +30,9 @@ impl Engine {
         }
     }
 
-    fn is_numeric(&self, row: usize, col: usize) -> bool {
-        self.schematic[row]
-            .chars().nth(col).unwrap()
-                .is_numeric()
-    }
-
-    fn is_special(&self, row: usize, col: usize) -> bool {
-        let char = self.schematic[row]
-            .chars().nth(col).unwrap();
-
-        !char.is_numeric() && !char.eq_ignore_ascii_case(&'.')
+    fn is_character(&self, row: usize, col: usize, func: fn(char) -> bool) -> bool {
+        func(self.schematic[row]
+            .chars().nth(col).unwrap())
     }
 
     fn get_number(&self, row: usize, col: usize) -> (u32, Range<usize>) {
@@ -36,7 +40,7 @@ impl Engine {
         let mut end_idx: usize = col;
 
         loop {
-            if !start_idx.overflowing_sub(1).1 && self.is_numeric(row, start_idx - 1) {
+            if !start_idx.overflowing_sub(1).1 && self.is_character(row, start_idx - 1, is_number) {
                 start_idx -= 1;
             } else {
                 break;
@@ -44,7 +48,7 @@ impl Engine {
         }
 
         loop {
-            if end_idx + 1 < self.schematic.len() && self.is_numeric(row, end_idx + 1) {
+            if end_idx + 1 < self.schematic.len() && self.is_character(row, end_idx + 1, is_number) {
                 end_idx += 1;
             } else {
                 break;
@@ -65,8 +69,8 @@ impl Engine {
             || col.overflowing_add_signed(i).0 >= self.schematic[row].len()
     }
 
-    fn sum_surroundings(&self, row: usize, col: usize) -> u32 {
-        if !self.is_special(row, col) {
+    fn calculate_surroundings(&self, row: usize, col: usize, character_selection: fn(char) -> bool, method: fn(u32, u32) -> u32) -> u32 {
+        if !self.is_character(row, col, character_selection) {
             return 0;
         }
 
@@ -90,9 +94,11 @@ impl Engine {
                 }
 
                 
-                if self.is_numeric(tmp_row, tmp_col) {
+                if self.is_character(tmp_row, tmp_col, is_number) {
                     let number = self.get_number(tmp_row, tmp_col);
-                    sum += number.0;
+
+                    sum = method(sum, number.0);
+                    // sum += number.0;
                     ranges.push(number.1);
                 }
             }
@@ -115,12 +121,13 @@ impl Engine {
         let mut engine_num: u32 = 0;
         for (row_num, row) in self.schematic.iter().enumerate() {
             for (col_num, _) in row.chars().enumerate() {
-                engine_num += self.sum_surroundings(row_num, col_num);
+                engine_num += self.calculate_surroundings(row_num, col_num, is_special_character, |sum, x: u32| {sum + x});
             }
         }
 
         engine_num
     }
+
 
     
 }
