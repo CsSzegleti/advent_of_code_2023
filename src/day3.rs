@@ -1,4 +1,4 @@
-use std::{ops::Range, vec};
+use std::{ops::{Range, RangeInclusive}, vec};
 
 pub struct Engine {
     schematic: Vec<String>
@@ -40,7 +40,8 @@ impl Engine {
         let mut end_idx: usize = col;
 
         loop {
-            if !start_idx.overflowing_sub(1).1 && self.is_character(row, start_idx - 1, is_number) {
+            if !start_idx.overflowing_sub(1).1
+                && self.is_character(row, start_idx - 1, is_number) {
                 start_idx -= 1;
             } else {
                 break;
@@ -48,7 +49,8 @@ impl Engine {
         }
 
         loop {
-            if end_idx + 1 < self.schematic.len() && self.is_character(row, end_idx + 1, is_number) {
+            if end_idx + 1 < self.schematic.len()
+                && self.is_character(row, end_idx + 1, is_number) {
                 end_idx += 1;
             } else {
                 break;
@@ -69,12 +71,16 @@ impl Engine {
             || col.overflowing_add_signed(i).0 >= self.schematic[row].len()
     }
 
-    fn calculate_surroundings(&self, row: usize, col: usize, character_selection: fn(char) -> bool, method: fn(u32, u32) -> u32) -> u32 {
+    fn calculate_surroundings(&self, row: usize, col: usize,
+            character_selection: fn(char) -> bool,
+            method: fn(u32, u32) -> u32,
+            allowed_adjacent_numbers: RangeInclusive<u32>) -> u32 {
         if !self.is_character(row, col, character_selection) {
             return 0;
         }
 
-        let mut sum = 0;
+        let mut res = 0;
+        let mut surrounding_number_count = 0;
         
         for i in -1..=1 {
             if self.is_row_out_of_bounds(row, i) {
@@ -97,14 +103,14 @@ impl Engine {
                 if self.is_character(tmp_row, tmp_col, is_number) {
                     let number = self.get_number(tmp_row, tmp_col);
 
-                    sum = method(sum, number.0);
-                    // sum += number.0;
+                    res = method(res, number.0);
+                    surrounding_number_count += 1;
                     ranges.push(number.1);
                 }
             }
         }
 
-        sum
+        if allowed_adjacent_numbers.contains(&surrounding_number_count) {res} else {0}
     }
 
     fn is_processed(&self, processed: Vec<Range<usize>>, idx: &usize) -> bool {
@@ -113,6 +119,7 @@ impl Engine {
                 return true
             }
         }
+
         false
     }
 
@@ -121,13 +128,32 @@ impl Engine {
         let mut engine_num: u32 = 0;
         for (row_num, row) in self.schematic.iter().enumerate() {
             for (col_num, _) in row.chars().enumerate() {
-                engine_num += self.calculate_surroundings(row_num, col_num, is_special_character, |sum, x: u32| {sum + x});
+                engine_num +=
+                    self.calculate_surroundings(
+                        row_num, col_num,
+                        is_special_character,
+                        |sum, x: u32| {sum + x},
+                        0..=8);
             }
         }
 
         engine_num
     }
 
+    pub fn get_gear_ratio(&self) -> u32 {
+        let mut gear_ratio: u32 = 0;
+        for (row_num, row) in self.schematic.iter().enumerate() {
+            for (col_num, _) in row.chars().enumerate() {
+                gear_ratio +=
+                    self.calculate_surroundings(
+                        row_num, col_num,
+                        is_asterisk,
+                        |base, x| { if base == 0 { x } else {base * x} },
+                        2..=2);
+            }
+        }
 
+        gear_ratio
+    }
     
 }

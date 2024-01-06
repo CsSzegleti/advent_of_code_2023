@@ -9,7 +9,10 @@ fn main() {
     let engine = day3::Engine::from(&input);
 
     let engine_number = engine.get_engine_num();
-    println!("{engine_number}");
+    println!("Engine num: {engine_number}");
+
+    let gear_ratio = engine.get_gear_ratio();
+    println!("Gear ratio: {gear_ratio}");
 }
 
 fn load_input(input_path: String) -> String {
